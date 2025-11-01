@@ -5,10 +5,10 @@ from overlay import show_overlay
 
 def main():
     print("⏳ Đang chụp màn hình...")
-    img = capture_screen()
+    img, scale_factor = capture_screen()
 
     print("🔍 Đang nhận dạng ký tự (OCR)...")
-    text_blocks = extract_text_from_image(img)
+    text_blocks = extract_text_from_image(img, scale_factor)
 
     if not text_blocks:
         print("❌ Không nhận được văn bản nào.")
