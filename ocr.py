@@ -72,6 +72,10 @@ def is_valid_text(text: str, conf: float, area: int, y: int, height: int) -> boo
     # Kiểm tra xem có phải UI của trình duyệt không
     if is_browser_ui_text(text, y, height):
         return False
+    
+    # Lọc bỏ text quá dài nếu confidence thấp (có thể là noise)
+    if len(text) > 200 and conf < 50:
+        return False
         
     return True
 
@@ -84,8 +88,15 @@ def extract_text_from_image(img: Image.Image, scale_factor: float = 1.0) -> List
     # Lấy kích thước ảnh
     img_width, img_height = img.size
     
-    # Sử dụng OCR đa ngôn ngữ (ví dụ: Nhật + Anh)
-    ocr_data = pytesseract.image_to_data(img, lang='jpn+eng', output_type=pytesseract.Output.DICT)
+    # Tối ưu hóa ảnh trước khi OCR
+    from PIL import ImageEnhance
+    # Tăng độ tương phản
+    enhancer = ImageEnhance.Contrast(img)
+    img = enhancer.enhance(1.2)
+    
+    # Sử dụng OCR đa ngôn ngữ (ví dụ: Nhật + Anh) với cấu hình tốt hơn
+    ocr_config = r'--oem 3 --psm 6'  # OEM 3: sử dụng cả legacy và neural, PSM 6: giả định khối text
+    ocr_data = pytesseract.image_to_data(img, lang='jpn+eng', config=ocr_config, output_type=pytesseract.Output.DICT)
     
     # Điều chỉnh tọa độ theo tỉ lệ màn hình
     def adjust_coordinates(x: int, y: int) -> Tuple[int, int]:
@@ -138,9 +149,14 @@ def extract_text_from_image(img: Image.Image, scale_factor: float = 1.0) -> List
         if current_line_y is None or abs(y - current_line_y) > y_tolerance:
             # Nếu có nội dung trong dòng hiện tại, lưu lại
             if current_line:
-                line_text = ' '.join(word['text'] for word in sorted(current_line, key=lambda w: w['x']))
-                line_x = min(word['x'] for word in current_line)
-                results.append((line_x, current_line_y, line_text))
+                # Sắp xếp từ theo thứ tự từ trái qua phải
+                sorted_words = sorted(current_line, key=lambda w: w['x'])
+                line_text = ' '.join(word['text'] for word in sorted_words)
+                line_x = sorted_words[0]['x']
+                
+                # Loại bỏ các dòng không có ý nghĩa (quá ngắn sau khi ghép)
+                if len(line_text.strip()) > 1:
+                    results.append((line_x, current_line_y, line_text))
             
             # Bắt đầu dòng mới
             current_line = [box]
@@ -151,19 +167,20 @@ def extract_text_from_image(img: Image.Image, scale_factor: float = 1.0) -> List
 
     # Xử lý dòng cuối cùng
     if current_line:
-        line_text = ' '.join(word['text'] for word in sorted(current_line, key=lambda w: w['x']))
-        line_x = min(word['x'] for word in current_line)
-        results.append((line_x, current_line_y, line_text))
-
-    return results
+        sorted_words = sorted(current_line, key=lambda w: w['x'])
+        line_text = ' '.join(word['text'] for word in sorted_words)
+        line_x = sorted_words[0]['x']
+        
+        if len(line_text.strip()) > 1:
+            results.append((line_x, current_line_y, line_text))
 
     return results
 
 # Dùng để test riêng file này
 if __name__ == "__main__":
     print("⏳ Đang chụp màn hình và nhận dạng...")
-    img = capture_screen()
-    results = extract_text_from_image(img)
+    img, scale_factor = capture_screen()
+    results = extract_text_from_image(img, scale_factor)
     if not results:
         print("❌ Không phát hiện văn bản.")
     else:

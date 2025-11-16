@@ -7,24 +7,23 @@ class OverlayWindow:
         """
         self.root = tk.Tk()
         self.root.attributes('-topmost', True)
-        self.root.attributes('-alpha', 0.75)          # Độ trong suốt (0.0 - 1.0)
+        self.root.attributes('-alpha', 0.8)           # Độ trong suốt (0.0 - 1.0)
         self.root.overrideredirect(True)              # Ẩn viền cửa sổ
-        self.root.configure(bg='white')
+        self.root.configure(bg='#f0f0f0')             # Màu nền nhạt hơn
 
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         self.root.geometry(f"{screen_width}x{screen_height}+0+0")
 
         # Font để tính toán kích thước
-        font = ('Segoe UI', 12)
+        font = ('Segoe UI', 11)
+        font_bold = ('Segoe UI', 11, 'bold')
 
         # Thông tin màn hình và khoảng cách an toàn
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        margin_right = 12
+        margin_right = 10
         margin_left = 8
-        margin_top = 12
-        margin_bottom = 12
+        margin_top = 10
+        margin_bottom = 10
 
         # Tạo label tạm để đo kích thước trước khi đặt
         temp_label = tk.Label(self.root, font=font)
@@ -38,7 +37,8 @@ class OverlayWindow:
         sorted_items = sorted(items, key=lambda item: item[1])
 
         for x, y, text in sorted_items:
-            if last_y is not None and abs(y - last_y) > 48:  # Ngưỡng cho đoạn mới
+            # Điều chỉnh threshold để nhóm tốt hơn
+            if last_y is not None and abs(y - last_y) > 40:  # Ngưỡng cho đoạn mới
                 if current_group:
                     paragraph_groups.append(current_group)
                 current_group = []
@@ -48,10 +48,10 @@ class OverlayWindow:
         if current_group:
             paragraph_groups.append(current_group)
 
-        # Xử lý từng đoạn văn; sử dụng hệ cột khi gặp overflow dọc
+        # Xử lý từng đoạn văn
         global_current_y = margin_top
         for paragraph in paragraph_groups:
-            # Xác định vị trí bắt đầu đoạn (dựa trên min y của các dòng nếu hợp lý)
+            # Xác định vị trí bắt đầu đoạn
             min_x = min(item[0] for item in paragraph)
             paragraph_start_y = max(global_current_y, min(item[1] for item in paragraph))
 
@@ -59,66 +59,79 @@ class OverlayWindow:
             column_x = min_x
             column_width = 0
             current_y = paragraph_start_y
+            max_col_height = 0
 
-            for x, y, text in paragraph:
+            for idx, (x, y, text) in enumerate(paragraph):
                 # Tính wraplength tối đa dựa trên không gian còn lại của màn hình
                 available_width = screen_width - column_x - margin_right
-                if available_width < 120:
-                    # Nếu không đủ chỗ bên phải, đặt column mới ở vị trí an toàn
+                if available_width < 150:
+                    # Nếu không đủ chỗ bên phải, reset column
                     column_x = margin_left
                     available_width = screen_width - column_x - margin_right
 
-                wraplength = min(max(300, int(available_width * 0.9)), 1200)
+                # Tính wraplength động dựa trên độ dài text
+                text_length = len(text)
+                if text_length < 30:
+                    wraplength = min(int(available_width * 0.8), 600)
+                elif text_length < 100:
+                    wraplength = min(int(available_width * 0.9), 800)
+                else:
+                    wraplength = min(int(available_width * 0.95), 1000)
 
                 # Tạo label tạm để đo yêu cầu kích thước
                 temp_label.config(text=text, wraplength=wraplength, justify='left')
                 temp_label.update_idletasks()
-                # Dùng giá trị ước tính từ temp_label
                 req_h = temp_label.winfo_reqheight()
-                req_w = min(temp_label.winfo_reqwidth(), available_width)
+                req_w = temp_label.winfo_reqwidth()
 
-                # Nếu chồng xuống dưới màn hình, bắt đầu cột mới (sang phải)
-                if current_y + req_h + margin_bottom > screen_height:
-                    # Start new column to the right of current column
-                    next_column_x = column_x + max(column_width, req_w) + 24
-                    # Nếu next column vượt quá màn hình, fallback: dời lên đầu màn hình
-                    if next_column_x + 120 > screen_width - margin_right:
-                        # Không còn chỗ ngang, bắt đầu từ top nhưng giữ bên trong màn hình
+                # Nếu chồng xuống dưới màn hình, bắt đầu cột mới
+                if current_y + req_h + margin_bottom > screen_height and idx > 0:
+                    # Start new column to the right
+                    next_column_x = column_x + max(column_width, req_w) + 20
+                    if next_column_x + 150 > screen_width - margin_right:
+                        # Không còn chỗ ngang, reset
                         current_y = margin_top
                         column_x = margin_left
                     else:
                         column_x = next_column_x
                         current_y = paragraph_start_y
-
-                    # Recompute available and wraplength for new column
+                    column_width = 0
+                    
+                    # Recompute wraplength for new column
                     available_width = screen_width - column_x - margin_right
-                    wraplength = min(max(200, int(available_width * 0.9)), 1200)
+                    if text_length < 30:
+                        wraplength = min(int(available_width * 0.8), 600)
+                    elif text_length < 100:
+                        wraplength = min(int(available_width * 0.9), 800)
+                    else:
+                        wraplength = min(int(available_width * 0.95), 1000)
 
-                # Tạo label chính
+                # Tạo label chính với styling
                 label = tk.Label(
                     self.root,
                     text=text,
-                    bg='white',
-                    fg='black',
+                    bg='#f0f0f0',
+                    fg='#1a1a1a',
                     font=font,
                     bd=1,
                     relief='solid',
                     padx=8,
-                    pady=4,
+                    pady=5,
                     wraplength=wraplength,
-                    justify='left'
+                    justify='left',
+                    anchor='nw',  # Anchor top-left
+                    highlightthickness=0
                 )
-                # Đặt tạm label để tính kích thước chính xác
+                # Đặt label
                 label.place(x=column_x, y=current_y)
                 label.update_idletasks()
 
                 real_w = label.winfo_width()
                 real_h = label.winfo_height()
 
-                # Nếu label vẫn vượt phải màn hình, nén wraplength và cập nhật
+                # Nếu label vẫn vượt phải màn hình, nén wraplength
                 if column_x + real_w + margin_right > screen_width:
-                    # Giảm wraplength để bắt buộc xuống dòng nhiều hơn
-                    new_wrap = max(120, wraplength - (column_x + real_w + margin_right - screen_width))
+                    new_wrap = max(100, wraplength - (column_x + real_w + margin_right - screen_width))
                     label.config(wraplength=new_wrap)
                     label.update_idletasks()
                     real_w = label.winfo_width()
@@ -128,14 +141,11 @@ class OverlayWindow:
                 column_width = max(column_width, real_w)
 
                 # Cập nhật y cho dòng tiếp theo
-                current_y += real_h + 6
+                current_y += real_h + 5
+                max_col_height = max(max_col_height, real_h)
 
-            # Sau một đoạn, di chuyển global_current_y xuống dưới nếu cột vẫn nằm ở cạnh trái
-            global_current_y = max(global_current_y, current_y + 12)
-
-            
-            # Cập nhật last_y cho dòng tiếp theo
-            last_y = current_y
+            # Cập nhật global_current_y cho đoạn tiếp theo
+            global_current_y = max(global_current_y, current_y + 15)
 
         # Nút đóng overlay
         btn_close = tk.Button(
