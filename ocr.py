@@ -178,11 +178,11 @@ def extract_text_from_image(img: Image.Image, scale_factor: float = 1.0) -> List
 
 # Dùng để test riêng file này
 if __name__ == "__main__":
-    print("⏳ Đang chụp màn hình và nhận dạng...")
+    print(" Đang chụp màn hình và nhận dạng...")
     img, scale_factor = capture_screen()
     results = extract_text_from_image(img, scale_factor)
     if not results:
-        print("❌ Không phát hiện văn bản.")
+        print(" Không phát hiện văn bản.")
     else:
         for i, (x, y, text) in enumerate(results):
             print(f"{i+1}. ({x}, {y}): {text}")

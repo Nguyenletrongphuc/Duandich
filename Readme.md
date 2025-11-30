@@ -1,12 +1,9 @@
 # Real-Time On-Screen Translator for Desktop (Python)
-
-## 📌 Mục tiêu dự án
-
 Phát triển một phần mềm chạy trên máy tính (Windows) có chức năng tương tự Google Ống Kính (Google Lens - Live Translate), cho phép:
 
-- Quét văn bản hiển thị trên **màn hình máy tính (không dùng camera)**, ví dụ như nội dung trong game, video hoặc phần mềm khác.
-- Nhận diện văn bản (OCR), ví dụ: tiếng Nhật.
-- Dịch sang ngôn ngữ đích (ví dụ: tiếng Việt hoặc tiếng Anh).
+- Quét văn bản hiển thị trên **màn hình máy tính (không dùng camera)**, ví dụ như nội dung trong game, web, video hoặc phần mềm khác.
+- Nhận diện văn bản (OCR), ví dụ: tiếng Nhật, Anh.
+- Dịch sang ngôn ngữ đích (ví dụ: tiếng Việt).
 - Hiển thị bản dịch **ngay trên màn hình**, đè lên vị trí gốc bằng overlay.
 
 Ứng dụng chạy nền, cho phép người dùng bật/tắt bằng phím nóng, và tự động cập nhật bản dịch theo thời gian thực.
@@ -27,8 +24,9 @@ Luồng hoạt động:
 | `ocr.py` | Xử lý nhận dạng chữ bằng Tesseract OCR |
 | `translate.py` | Gửi yêu cầu dịch văn bản |
 | `overlay.py` | Tạo lớp phủ hiển thị bản dịch trên màn hình |
-| `main.py` | Giao tiếp giữa các module, điều khiển vòng lặp chính |
-
+| `offline_translator.py` | Mô hình dịch thuật offline |
+| `utils.py` | Chứa các import cần thiết  |
+| `floating_control.py` | Các nút điều khiển chính |
 ---
 
 ## 🛠️ Công nghệ & thư viện
@@ -44,7 +42,7 @@ Cần cài đặt phần mềm OCR:
 
 ---
 
-## ✅ Chức năng cần hỗ trợ
+##  Chức năng cần hỗ trợ
 
 - Chụp ảnh màn hình định kỳ (hoặc theo phím nóng)
 - OCR nhận diện chữ từ ảnh
@@ -55,9 +53,7 @@ Cần cài đặt phần mềm OCR:
 
 ---
 
-## 🔁 Gợi ý phát triển (cho Copilot)
-
-- Mỗi module nên được đóng gói thành class hoặc hàm riêng
-- Tránh hardcode ngôn ngữ – nên khai báo biến `src_lang = "ja"` và `dst_lang = "vi"`
-- Có thể viết decorator để log thời gian xử lý từng bước
-- Nên hỗ trợ chạy bằng `python main.py` và xử lý ngoại lệ rõ ràng
+## Các lưu ý
+- Phải tải riêng thư mục Tesseract và đặt theo đường dẫn cố định như sau: C:\Program Files\
+- Chức năng dịch offline chỉ hoạt động khi đã tải trước lúc có mạng và mô hình lưu trong thư mục temp
+- lệnh khởi động py -3.10 main.py

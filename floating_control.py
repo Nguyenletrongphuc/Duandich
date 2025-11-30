@@ -3,7 +3,7 @@ from tkinter import font
 import threading
 
 class FloatingControlPanel:
-    def __init__(self, on_capture_callback, on_exit_callback):
+    def __init__(self, on_capture_callback, on_exit_callback, on_download_callback=None, offline_ready=False):
         """
         Tạo panel nổi với hai nút Chụp và Thoát
         :param on_capture_callback: hàm callback khi click nút Chụp
@@ -11,7 +11,9 @@ class FloatingControlPanel:
         """
         self.on_capture = on_capture_callback
         self.on_exit = on_exit_callback
+        self.on_download = on_download_callback
         self.is_capturing = False
+        self.is_downloading = False
         
         # Tạo cửa sổ chính
         self.root = tk.Tk()
@@ -74,6 +76,37 @@ class FloatingControlPanel:
             activebackground='#c0392b'
         )
         self.btn_exit.pack(pady=5)
+        
+        # Nút Tải Offline
+        self.btn_download = tk.Button(
+            button_frame,
+            text="⬇ Tải Offline",
+            bg='#f39c12',
+            fg='white',
+            font=('Arial', 10, 'bold'),
+            padx=16,
+            pady=10,
+            relief='raised',
+            bd=2,
+            cursor='hand2',
+            command=self.on_download_clicked,
+            activebackground='#d35400'
+        )
+        self.btn_download.pack(pady=5)
+        
+        # Hiển thị trạng thái (Offline)
+        self.status_label = tk.Label(
+            main_frame,
+            text=('Offline: Ready' if offline_ready else 'Offline: Not ready'),
+            bg='#2c3e50',
+            fg='white',
+            font=('Arial', 9)
+        )
+        self.status_label.pack(pady=(8, 0))
+        
+        # Hide download button if offline is already ready
+        if offline_ready:
+            self.set_offline_ready(True)
         
         # Đặt vị trí cửa sổ ở bên phải giữa màn hình
         self.set_window_position()
@@ -171,4 +204,59 @@ class FloatingControlPanel:
             self.root.quit()
             self.root.destroy()
         except:
+            pass
+
+    # Download button handler
+    def on_download_clicked(self):
+        if self.is_downloading or not self.on_download:
+            return
+        
+        self.is_downloading = True
+        self.btn_download.config(state='disabled', text='⬇ Đang tải...')
+        self.btn_capture.config(state='disabled')
+        self.btn_exit.config(state='disabled')
+
+        def run_download():
+            try:
+                # Provide a progress callback to update status safely
+                def progress(msg):
+                    try:
+                        self.root.after(0, lambda: self.set_status(msg))
+                    except Exception:
+                        pass
+                ok = False
+                try:
+                    ok = self.on_download(progress)
+                except TypeError:
+                    # on_download may accept no args
+                    ok = self.on_download()
+                if ok:
+                    self.root.after(0, lambda: self.set_offline_ready(True))
+                else:
+                    self.root.after(0, lambda: self.set_status('Offline: Error'))
+            finally:
+                self.is_downloading = False
+                self.root.after(0, lambda: self.btn_download.config(state='normal', text='⬇ Tải Offline'))
+                self.root.after(0, lambda: self.btn_capture.config(state='normal'))
+                self.root.after(0, lambda: self.btn_exit.config(state='normal'))
+
+        thread = threading.Thread(target=run_download, daemon=True)
+        thread.start()
+
+    def set_status(self, msg):
+        try:
+            self.status_label.config(text=msg)
+        except Exception:
+            pass
+
+    def set_offline_ready(self, ready=True):
+        # Nếu ready thì ẩn nút download và cập nhật label
+        try:
+            if ready:
+                self.btn_download.pack_forget()
+                self.set_status('Offline: Ready')
+            else:
+                self.btn_download.pack(pady=5)
+                self.set_status('Offline: Not ready')
+        except Exception:
             pass
